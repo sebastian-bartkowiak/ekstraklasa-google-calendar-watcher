@@ -10,6 +10,7 @@ const CALENDAR_ID = "9kqm5kqf901bd7tt5f1fg49cfs@group.calendar.google.com";
 const HOME_GAME_ADDRESS = "INEA Stadion, Bułgarska, Poznań";
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
 const TOKEN_PATH = 'token.json';
+const CUP_SCHEDULE_URL = "https://www.laczynaspilka.pl/rozgrywki/puchar-polski,32782.html?round=0";
 
 function isset(accessor){
     try {
@@ -175,7 +176,7 @@ function createNewMatchEvent(matchEntry){
         ret.start.date = matchEntry.date;
         ret.end.date = matchEntry.date;
     }
-    if(ret.summary.toLocaleLowerCase().startsWith(TEAM_NAME.toLocaleLowerCase())){
+    if(ret.summary.split('-')[0].toLocaleLowerCase().includes(TEAM_NAME.toLocaleLowerCase())){
         //home game, add location
         ret.location = HOME_GAME_ADDRESS;
     }
@@ -201,8 +202,10 @@ async function main(){
     let auth = await authGoogleCalendar();
     log("Obtaining matches from calendar...");
     let calendarMatches = await getCalendarMatches(auth);
-    log("Getting matches schedule...");
+    log("Getting league matches schedule...");
     let schedule = await getMatchesSchedule();
+    log("Getting cup matches schedule...");
+    schedule = schedule.concat(await getCupMatchesSchedule());
     log("Setting schedule in calendar...");
     for(match of schedule){
         await addMatch(auth,match,calendarMatches);
@@ -210,4 +213,42 @@ async function main(){
     log("Finished!");
 }
 
-main();
+try{
+    main();
+}
+catch(err){
+    log("ERROR:")
+    log(JSON.stringify(err));
+}
+
+async function getCupMatchesSchedule(){
+    let schedule = await request.get(CUP_SCHEDULE_URL);
+    let $ = cheerio.load(schedule);
+    let matches = [];
+    $('.season__games .season__game').filter(function(){
+        return $(this).text().toLocaleLowerCase().includes(TEAM_NAME.toLocaleLowerCase());
+    }).each(function(){
+        let matchRow = $(this);
+        let teams = matchRow.find('div.teams a.team').map(function(){return $(this).text().trim()});
+        let score = matchRow.find('span.score').text().trim();
+        let date = matchRow.find('div.season__game-data .month').text().split('/');
+        let time = matchRow.find('div.season__game-data .hour').text().split(':');
+        date = new Date(date[1],parseInt(date[0])-1,matchRow.find('div.season__game-data .day').text(),time[0],time[1]);
+        if(score.length){
+            //past game with score
+            matches.push({
+                title:      teams[0] + ' - ' + teams[1] + ' [PP]',
+                score:      score,
+                dateTime:   date
+            })
+        }
+        else{
+            //upcoming game without score
+            matches.push({
+                title:      teams[0] + ' - ' + teams[1] + ' [PP]',
+                dateTime:   date
+            })
+        }
+    });
+    return matches;
+}
