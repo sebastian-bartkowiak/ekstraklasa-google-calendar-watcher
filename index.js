@@ -19,6 +19,11 @@ function isset(accessor){
     }
 }
 
+function log(text){
+    fs.appendFileSync('log.log',new Date().toISOString() + ' :: ' + text+'\n');
+    console.log(text);
+}
+
 async function getMatchesSchedule(){
     let schedule = await request.get(SCHEDULE_URL);
     let $ = cheerio.load(schedule);
@@ -115,7 +120,7 @@ async function addMatch(auth,match,calendarMatches) {
         let event = createNewMatchEvent(match);
         if(isset(()=>calendarMatch)){
             //update match event
-            console.log("Updating match: " + match.title);
+            log("Updating match: " + match.title);
             calendarMatch.summary = event.summary;
             calendarMatch.start = event.start;
             calendarMatch.end = event.end;
@@ -133,7 +138,7 @@ async function addMatch(auth,match,calendarMatches) {
         }
         else{
             //new match event needed
-            console.log("Adding new match: " + match.title);
+            log("Adding new match: " + match.title);
             google.calendar({version: 'v3', auth}).events.insert({
                 auth: auth,
                 calendarId: CALENDAR_ID,
@@ -192,17 +197,17 @@ async function getCalendarMatches(auth){
 }
 
 async function main(){
-    console.log("Logging in to Google Calendar...");
+    log("Logging in to Google Calendar...");
     let auth = await authGoogleCalendar();
-    console.log("Obtaining matches from calendar...");
+    log("Obtaining matches from calendar...");
     let calendarMatches = await getCalendarMatches(auth);
-    console.log("Getting matches schedule...");
+    log("Getting matches schedule...");
     let schedule = await getMatchesSchedule();
-    console.log("Setting schedule in calendar...");
+    log("Setting schedule in calendar...");
     for(match of schedule){
         await addMatch(auth,match,calendarMatches);
     }
-    console.log("Finished!");
+    log("Finished!");
 }
 
 main();
