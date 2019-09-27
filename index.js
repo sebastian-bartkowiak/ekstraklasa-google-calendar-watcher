@@ -123,8 +123,10 @@ async function addMatch(auth,match,calendarMatches) {
             //update match event
             log("Updating match: " + match.title);
             calendarMatch.summary = event.summary;
-            calendarMatch.start = event.start;
-            calendarMatch.end = event.end;
+            if(isset(()=>event.start.dateTime))
+                calendarMatch.start = event.start;
+            if(isset(()=>event.end.dateTime))
+                calendarMatch.end = event.end;
             google.calendar({version: 'v3', auth}).events.update({
                 auth: auth,
                 calendarId: CALENDAR_ID,
