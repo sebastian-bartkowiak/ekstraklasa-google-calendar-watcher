@@ -5,12 +5,13 @@ const readline = require('readline');
 const {google} = require('googleapis');
 
 const TEAM_NAME = "Lech Poznań";
-const SCHEDULE_URL = "http://ekstraklasa.org/rozgrywki/terminarz/ekstraklasa-3";
+const SCHEDULE_URL = "http://ekstraklasa.org/rozgrywki/terminarz/ekstraklasa-4";
 const CALENDAR_ID = "9kqm5kqf901bd7tt5f1fg49cfs@group.calendar.google.com";
 const HOME_GAME_ADDRESS = "INEA Stadion, Bułgarska, Poznań";
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
 const TOKEN_PATH = 'token.json';
-const CUP_SCHEDULE_URL = "https://www.laczynaspilka.pl/rozgrywki/puchar-polski,32782.html?round=0";
+const CUP_SCHEDULE_URL = "https://www.laczynaspilka.pl/rozgrywki/puchar-polski,38528.html?round=0";
+const DEBUG = false;
 
 function isset(accessor){
     try {
@@ -200,17 +201,29 @@ async function getCalendarMatches(auth){
 }
 
 async function main(){
-    log("Logging in to Google Calendar...");
-    let auth = await authGoogleCalendar();
-    log("Obtaining matches from calendar...");
-    let calendarMatches = await getCalendarMatches(auth);
+    let auth, calendarMatches;
+    if(!DEBUG){
+        log("Logging in to Google Calendar...");
+        auth = await authGoogleCalendar();
+        log("Obtaining matches from calendar...");
+        calendarMatches = await getCalendarMatches(auth);    
+    }
+    else{
+        log("Debug run, not connecting to Google Calendar")
+    }
     log("Getting league matches schedule...");
     let schedule = await getMatchesSchedule();
     log("Getting cup matches schedule...");
     schedule = schedule.concat(await getCupMatchesSchedule());
-    log("Setting schedule in calendar...");
-    for(match of schedule){
-        await addMatch(auth,match,calendarMatches);
+    if(!DEBUG){
+        log("Setting schedule in calendar...");
+        for(match of schedule){
+            await addMatch(auth,match,calendarMatches);
+        }
+    }
+    else{
+        console.log("Found following matches:");
+        console.log(schedule);
     }
     log("Finished!");
 }
@@ -227,10 +240,10 @@ async function getCupMatchesSchedule(){
     let schedule = await request.get(CUP_SCHEDULE_URL);
     let $ = cheerio.load(schedule);
     let matches = [];
-    $('.season__games .season__game').filter(function(){
+    $('.season__games .season__game .team').filter(function(){
         return $(this).text().toLocaleLowerCase().includes(TEAM_NAME.toLocaleLowerCase());
     }).each(function(){
-        let matchRow = $(this);
+        let matchRow = $(this).closest('.season__game');
         let teams = matchRow.find('div.teams a.team').map(function(){return $(this).text().trim()});
         let score = matchRow.find('span.score').text().trim();
         let date = matchRow.find('div.season__game-data .month').text().split('/');
