@@ -11,6 +11,7 @@ const HOME_GAME_ADDRESS = "INEA Stadion, Bułgarska, Poznań";
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
 const TOKEN_PATH = 'token.json';
 const CUP_SCHEDULE_URL = "https://www.laczynaspilka.pl/rozgrywki/puchar-polski,38528.html?round=0";
+const CURRENT_SEASON_THRESHOLD_DATE = new Date(2020, 08, 01);
 const DEBUG = false;
 
 function isset(accessor){
@@ -195,7 +196,7 @@ async function getCalendarMatches(auth){
             if (err) {
                 return reject(err);
             }
-            resolve(res.data.items);
+            resolve(res.data.items.filter((e) => new Date(e.start.dateTime) > CURRENT_SEASON_THRESHOLD_DATE));
         });
     })
 }
