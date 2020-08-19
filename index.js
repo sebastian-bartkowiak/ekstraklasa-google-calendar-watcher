@@ -16,7 +16,7 @@ const CALENDAR_ID = "9kqm5kqf901bd7tt5f1fg49cfs@group.calendar.google.com";
 const HOME_GAME_ADDRESS = "INEA Stadion, Bułgarska, Poznań";
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
 const TOKEN_PATH = 'token.json';
-const DEBUG = true;
+const DEBUG = false;
 
 function isset(accessor){
     try {
