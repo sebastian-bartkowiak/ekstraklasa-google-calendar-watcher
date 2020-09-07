@@ -326,28 +326,34 @@ async function getELMatches(){
         $('table.main tr').filter(function(){
             return $(this).text().toLocaleLowerCase().includes(TEAM_NAME.toLocaleLowerCase());
         }).each(function(){
-            const cells = $(this).find('td');
-            const date = parse90MinutDate($(cells[5]).text().trim(), prevDate);
-            prevDate = date;
-            let teamH = $(cells[1]).text().trim();
-            teamH = teamH===''?'???':teamH;
-            let teamA = $(cells[3]).text().trim();
-            teamA = teamA===''?'???':teamA;
-            let score = $(cells[2]).text().trim()
-            if(score === '-'){
-                //match with no score
-                matches.push({
-                    title:      teamH + ' - ' + teamA + ' [Liga Europy]',
-                    dateTime:   date
-                });
+            try{
+                const cells = $(this).find('td');
+                const date = parse90MinutDate($(cells[5]).text().trim(), prevDate);
+                prevDate = date;
+                let teamH = $(cells[1]).text().trim();
+                teamH = teamH===''?'???':teamH;
+                let teamA = $(cells[3]).text().trim();
+                teamA = teamA===''?'???':teamA;
+                let score = $(cells[2]).text().trim()
+                if(score === '-'){
+                    //match with no score
+                    matches.push({
+                        title:      teamH + ' - ' + teamA + ' [Liga Europy]',
+                        dateTime:   date
+                    });
+                }
+                else{
+                    //match with score
+                    matches.push({
+                        title:      teamH + ' - ' + teamA + ' [Liga Europy]',
+                        dateTime:   date,
+                        score:      score.replace('-',':')
+                    });
+                }
             }
-            else{
-                //match with score
-                matches.push({
-                    title:      teamH + ' - ' + teamA + ' [Liga Europy]',
-                    dateTime:   date,
-                    score:      score.replace('-',':')
-                });
+            catch(error){
+                log("Error occured while querying Europa League match, probably future potential match not ready yet");
+                log(error);
             }
         })
         return matches;
