@@ -92,7 +92,8 @@ async function getAccessToken(oAuth2Client) {
 async function addMatch(auth,match,calendarMatches) {
     return new Promise((resolve,reject)=>{
         let calendarMatch = undefined;
-        for(let i=0;i<calendarMatches.length;i++){
+        let i = 0;
+        for(;i<calendarMatches.length;i++){
             if(calendarMatches[i].summary.toLocaleLowerCase().startsWith(match.title.toLocaleLowerCase())){
                 calendarMatch = calendarMatches[i];
                 break;
@@ -100,24 +101,33 @@ async function addMatch(auth,match,calendarMatches) {
         }
         let event = createNewMatchEvent(match);
         if(isset(()=>calendarMatch)){
-            //update match event
-            log("Updating match: " + match.title);
-            calendarMatch.summary = event.summary;
-            if(isset(()=>event.start.dateTime))
-                calendarMatch.start = event.start;
-            if(isset(()=>event.end.dateTime))
-                calendarMatch.end = event.end;
-            google.calendar({version: 'v3', auth}).events.update({
-                auth: auth,
-                calendarId: CALENDAR_ID,
-                eventId: calendarMatch.id,
-                resource: calendarMatch,
-            }, function(err, event) {
-                if (err) {
-                    return reject(err);
-                }
+            let same = (calendarMatch.summary === event.summary && ((isset(()=>event.start.dateTime) && Date.parse(calendarMatch.start.dateTime) === Date.parse(event.start.dateTime)) || !isset(()=>event.start.dateTime)) && ((isset(()=>event.end.dateTime) && Date.parse(calendarMatch.end.dateTime) === Date.parse(event.end.dateTime)) || !isset(()=>event.end.dateTime)));
+            if(!same){
+                //update match event
+                log("Updating match: " + match.title);
+                calendarMatch.summary = event.summary;
+                if(isset(()=>event.start.dateTime))
+                    calendarMatch.start = event.start;
+                if(isset(()=>event.end.dateTime))
+                    calendarMatch.end = event.end;
+                google.calendar({version: 'v3', auth}).events.update({
+                    auth: auth,
+                    calendarId: CALENDAR_ID,
+                    eventId: calendarMatch.id,
+                    resource: calendarMatch,
+                }, function(err, event) {
+                    calendarMatches.splice(i, 1);
+                    if (err) {
+                        return reject(err);
+                    }
+                    resolve();
+                });
+            }
+            else{
+                //no update needed
+                calendarMatches.splice(i, 1);
                 resolve();
-            });
+            }
         }
         else{
             //new match event needed
@@ -133,6 +143,22 @@ async function addMatch(auth,match,calendarMatches) {
                 resolve();
             });
         }
+    });
+}
+
+async function deleteMatch(auth, match){
+    return new Promise((resolve,reject)=>{
+        log("Removing match: " + match.summary);
+        google.calendar({version: 'v3', auth}).events.delete({
+            auth: auth,
+            calendarId: CALENDAR_ID,
+            eventId: match.id
+        }, function(err, event) {
+            if (err) {
+                return reject(err);
+            }
+            resolve();
+        });
     });
 }
 
@@ -182,6 +208,7 @@ async function getCalendarMatches(auth){
 
 async function main(){
     let auth, calendarMatches;
+    log("-------------------------------------------------------");
     if(!DEBUG){
         log("Logging in to Google Calendar...");
         auth = await authGoogleCalendar();
@@ -202,6 +229,12 @@ async function main(){
     else{
         console.log("Found following matches:");
         console.log(schedule);
+    }
+    if(calendarMatches.length){
+        log("Found >>"+calendarMatches.length+"<< matches to be removed...");
+        for(match of calendarMatches){
+            await deleteMatch(auth,match);
+        }
     }
     log("Finished!");
 }
@@ -246,20 +279,22 @@ async function getLeagueMatchesSchedule(){
             else{
                 //upcoming game without score
                 let date = matchRow.find('td.date-short div.hidden-sm').text().trim().split('.');
-                if(matchRow.find('div.hour').length){
-                    //hour available
-                    let hour = matchRow.find('div.hour').text().trim().split(':');
-                    matches.push({
-                        title:      teams[0] + ' - ' + teams[1],
-                        dateTime:   new Date(date[2],parseInt(date[1])-1,date[0],hour[0],hour[1])
-                    })
-                }
-                else{
-                    //no hour available
-                    matches.push({
-                        title:      teams[0] + ' - ' + teams[1],
-                        date:       date[2]+'-'+date[1]+'-'+date[0]
-                    })
+                if(date.length === 3){
+                    if(matchRow.find('div.hour').length){
+                        //hour available
+                        let hour = matchRow.find('div.hour').text().trim().split(':');
+                        matches.push({
+                            title:      teams[0] + ' - ' + teams[1],
+                            dateTime:   new Date(date[2],parseInt(date[1])-1,date[0],hour[0],hour[1])
+                        })
+                    }
+                    else{
+                        //no hour available
+                        matches.push({
+                            title:      teams[0] + ' - ' + teams[1],
+                            date:       date[2]+'-'+date[1]+'-'+date[0]
+                        })
+                    }
                 }
             }
         });
@@ -328,27 +363,30 @@ async function getELMatches(){
         }).each(function(){
             try{
                 const cells = $(this).find('td');
-                const date = parse90MinutDate($(cells[5]).text().trim(), prevDate);
-                prevDate = date;
-                let teamH = $(cells[1]).text().trim();
-                teamH = teamH===''?'???':teamH;
-                let teamA = $(cells[3]).text().trim();
-                teamA = teamA===''?'???':teamA;
-                let score = $(cells[2]).text().trim()
-                if(score === '-'){
-                    //match with no score
-                    matches.push({
-                        title:      teamH + ' - ' + teamA + ' [Liga Europy]',
-                        dateTime:   date
-                    });
-                }
-                else{
-                    //match with score
-                    matches.push({
-                        title:      teamH + ' - ' + teamA + ' [Liga Europy]',
-                        dateTime:   date,
-                        score:      score.replace('-',':')
-                    });
+                let dateString = $(cells[5]).text().trim();
+                if(dateString !== ''){
+                    const date = parse90MinutDate($(cells[5]).text().trim(), prevDate);
+                    prevDate = date;
+                    let teamH = $(cells[1]).text().trim();
+                    teamH = teamH===''?'???':teamH;
+                    let teamA = $(cells[3]).text().trim();
+                    teamA = teamA===''?'???':teamA;
+                    let score = $(cells[2]).text().trim()
+                    if(score === '-'){
+                        //match with no score
+                        matches.push({
+                            title:      teamH + ' - ' + teamA + ' [Liga Europy]',
+                            dateTime:   date
+                        });
+                    }
+                    else{
+                        //match with score
+                        matches.push({
+                            title:      teamH + ' - ' + teamA + ' [Liga Europy]',
+                            dateTime:   date,
+                            score:      score.replace('-',':')
+                        });
+                    }
                 }
             }
             catch(error){
