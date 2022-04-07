@@ -10,7 +10,9 @@ const LEAGUE_SCHEDULE_URL = "http://www.90minut.pl/liga/1/liga11753.html";
 const CUP_SCHEDULE_URL = "http://www.90minut.pl/liga/1/liga11757.html";//"https://www2.laczynaspilka.pl/rozgrywki/puchar-polski,42615.html?round=0";
 const EUROPA_LEAGUE_URL = undefined;//"http://www.90minut.pl/liga/1/liga11239.html";
 const CHAMPIONS_LEAGUE_URL = undefined;//"http://www.90minut.pl/liga/1/liga11238.html";
-const CURRENT_SEASON_THRESHOLD_DATE = new Date(2021, 06, 01);
+const CURRENT_SEASON_START_DATE = new Date(2021, 06, 01);
+let CURRENT_SEASON_STOP_DATE = new Date(CURRENT_SEASON_START_DATE.getTime())
+CURRENT_SEASON_STOP_DATE.setFullYear(CURRENT_SEASON_STOP_DATE.getFullYear()+1)
 
 const CALENDAR_ID = "9kqm5kqf901bd7tt5f1fg49cfs@group.calendar.google.com";
 const HOME_GAME_ADDRESS = "INEA Stadion, Bułgarska, Poznań";
@@ -226,7 +228,7 @@ async function getCalendarMatches(auth){
         google.calendar({version: 'v3', auth}).events.list({
             auth: auth,
             calendarId: CALENDAR_ID,
-            timeMin: CURRENT_SEASON_THRESHOLD_DATE.toISOString()
+            timeMin: CURRENT_SEASON_START_DATE.toISOString()
         }, function(err, res) {
             if (err) {
                 return reject(err);
@@ -295,7 +297,7 @@ async function getLeagueMatchesSchedule(){
         schedule = iso88592.decode(schedule.toString('binary'));
         let $ = cheerio.load(schedule);
         let matches = [];
-        let prevDate = CURRENT_SEASON_THRESHOLD_DATE;
+        let prevDate = CURRENT_SEASON_START_DATE;
         $('table.main tr').filter(function(){
             return $(this).text().toLocaleLowerCase().includes(TEAM_NAME.toLocaleLowerCase());
         }).each(function(){
@@ -384,7 +386,7 @@ async function getCupMatchesSchedule(){
         schedule = iso88592.decode(schedule.toString('binary'));
         let $ = cheerio.load(schedule);
         let matches = [];
-        let prevDate = CURRENT_SEASON_THRESHOLD_DATE;
+        let prevDate = CURRENT_SEASON_START_DATE;
         $('table.main tr').filter(function(){
             return $(this).text().toLocaleLowerCase().includes(TEAM_NAME.toLocaleLowerCase());
         }).each(function(){
@@ -449,7 +451,7 @@ async function getELMatches(){
         schedule = iso88592.decode(schedule.toString('binary'));
         let $ = cheerio.load(schedule);
         let matches = [];
-        let prevDate = CURRENT_SEASON_THRESHOLD_DATE;
+        let prevDate = CURRENT_SEASON_START_DATE;
         $('table.main tr').filter(function(){
             return $(this).text().toLocaleLowerCase().includes(TEAM_NAME.toLocaleLowerCase());
         }).each(function(){
@@ -521,6 +523,9 @@ function parse90MinutDate(dateString, prevDate){
     }
     if(ret < prevDate){
         ret.setFullYear(ret.getFullYear()+1);
+    }
+    if(ret > CURRENT_SEASON_STOP_DATE){
+        ret.setFullYear(ret.getFullYear()-1);
     }
     return ret;
 }
