@@ -6,11 +6,10 @@ const {google} = require('googleapis');
 const iso88592 = require('iso-8859-2');
 
 const TEAM_NAME = "Lech Poznań";
-const LEAGUE_SCHEDULE_URL = "http://www.90minut.pl/liga/1/liga11753.html";
-const CUP_SCHEDULE_URL = "http://www.90minut.pl/liga/1/liga11757.html";//"https://www2.laczynaspilka.pl/rozgrywki/puchar-polski,42615.html?round=0";
-const EUROPA_LEAGUE_URL = undefined;//"http://www.90minut.pl/liga/1/liga11239.html";
-const CHAMPIONS_LEAGUE_URL = undefined;//"http://www.90minut.pl/liga/1/liga11238.html";
-const CURRENT_SEASON_START_DATE = new Date(2021, 06, 01);
+const LEAGUE_SCHEDULE_URL = "http://www.90minut.pl/liga/1/liga12904.html";
+const CUP_SCHEDULE_URL = "http://www.90minut.pl/liga/1/liga12908.html";
+const EUROPEAN_CUP_URL = "http://www.90minut.pl/liga/1/liga12911.html";
+const CURRENT_SEASON_START_DATE = new Date(2023, 06, 01);
 let CURRENT_SEASON_STOP_DATE = new Date(CURRENT_SEASON_START_DATE.getTime())
 CURRENT_SEASON_STOP_DATE.setFullYear(CURRENT_SEASON_STOP_DATE.getFullYear()+1)
 
@@ -257,16 +256,16 @@ async function main(){
         for(match of schedule){
             await addMatch(auth,match,calendarMatches);
         }
+        if(calendarMatches.length){
+            log("Found >>"+calendarMatches.length+"<< matches to be removed...");
+            for(match of calendarMatches){
+                await deleteMatch(auth,match);
+            }
+        }
     }
     else{
         console.log("Found following matches:");
         console.log(schedule);
-    }
-    if(calendarMatches.length){
-        log("Found >>"+calendarMatches.length+"<< matches to be removed...");
-        for(match of calendarMatches){
-            await deleteMatch(auth,match);
-        }
     }
     log("Finished!");
 }
@@ -335,12 +334,12 @@ async function getLeagueMatchesSchedule(){
                         let dashPos = roundDate.indexOf('-')
                         if(roundDate.startsWith('kolejka') && dashPos !== -1){
                             roundDate = roundDate.substring(dashPos + 2)
-                            const singleMonthRegex = /^(\d{1,2})-\d{1,2}(\s[^-]+?)$/
+                            const singleMonthRegex = /^(\d{1,2})(-\d{1,2})?(\s[^-]+?)$/
                             const singleMatch = roundDate.match(singleMonthRegex)
                             const dualMonthRegex = /^(\d{1,2}\s[^-]+?)-\d{1,2}\s[^-]+?$/
                             const dualMatch = roundDate.match(dualMonthRegex)
                             if(singleMatch !== null){
-                                roundDate = singleMatch[1]+singleMatch[2]
+                                roundDate = singleMatch[1]+singleMatch[3]
                             }
                             else if(dualMatch !== null){
                                 roundDate = dualMatch[1]
@@ -438,14 +437,14 @@ async function getCupMatchesSchedule(){
 }
 
 async function getELMatches(){
-    if(typeof EUROPA_LEAGUE_URL === 'undefined'){
-        log("Skipped getting Europa League matches schedule, because no url defined");
+    if(typeof EUROPEAN_CUP_URL === 'undefined'){
+        log("Skipped getting European Cup matches schedule, because no url defined");
         return [];
     }
-    log("Getting Europa League matches schedule...");
+    log("Getting European Cup matches schedule...");
     try{
         let schedule = await request.get({
-            uri: EUROPA_LEAGUE_URL,
+            uri: EUROPEAN_CUP_URL,
             encoding: null
         });
         schedule = iso88592.decode(schedule.toString('binary'));
@@ -469,14 +468,14 @@ async function getELMatches(){
                     if(score === '-'){
                         //match with no score
                         matches.push({
-                            title:      teamH + ' - ' + teamA + ' [Liga Europy]',
+                            title:      teamH + ' - ' + teamA + ' [Liga Konferencji Europy]',
                             dateTime:   date
                         });
                     }
                     else{
                         //match with score
                         matches.push({
-                            title:      teamH + ' - ' + teamA + ' [Liga Europy]',
+                            title:      teamH + ' - ' + teamA + ' [Liga Konferencji Europy]',
                             dateTime:   date,
                             score:      score.replace('-',':')
                         });
@@ -484,14 +483,14 @@ async function getELMatches(){
                 }
             }
             catch(error){
-                log("Error occured while querying Europa League match, probably future potential match not ready yet");
+                log("Error occured while querying European Cup match, probably future potential match not ready yet");
                 log(error);
             }
         })
         return matches;
     }
     catch(error){
-        log("Error occured while querying Europa League matches:");
+        log("Error occured while querying European Cup matches:");
         log(error);
         return [];
     }
