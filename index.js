@@ -90,6 +90,21 @@ async function getAccessToken(oAuth2Client) {
     });
 }
 
+function dashedDateParse(datestring){
+    try{
+        if(datestring.match(/^\d{4}\-\d{1,2}\-\d{1,2}$/)){
+            const elements = datestring.split('-')
+            if(elements.length === 3){
+                return new Date(elements[0]*1, (elements[1]*1)-1, elements[2]*1).getTime()
+            }
+        }
+        return Date.parse(datestring)
+    }
+    catch(e){
+        return Date.parse(datestring)
+    }
+}
+
 async function addMatch(auth,match,calendarMatches) {
     return new Promise((resolve,reject)=>{
         let calendarMatch = undefined;
@@ -107,28 +122,28 @@ async function addMatch(auth,match,calendarMatches) {
                 (
                     (
                         isset(()=>event.start.dateTime) &&
-                        Date.parse(calendarMatch.start.dateTime) === Date.parse(event.start.dateTime)
+                        dashedDateParse(calendarMatch.start.dateTime) === dashedDateParse(event.start.dateTime)
                     ) ||
                     !isset(()=>event.start.dateTime)
                 ) &&
                 (
                     (
                         isset(()=>event.end.dateTime) &&
-                        Date.parse(calendarMatch.end.dateTime) === Date.parse(event.end.dateTime)
+                        dashedDateParse(calendarMatch.end.dateTime) === dashedDateParse(event.end.dateTime)
                     ) ||
                     !isset(()=>event.end.dateTime)
                 ) &&
                 (
                     (
                         isset(()=>event.start.date) &&
-                        Date.parse(calendarMatch.start.date) === Date.parse(event.start.date)
+                        dashedDateParse(calendarMatch.start.date) === dashedDateParse(event.start.date)
                     ) ||
                     !isset(()=>event.start.date)
                 ) &&
                 (
                     (
                         isset(()=>event.end.date) &&
-                        Date.parse(calendarMatch.end.date) === Date.parse(event.end.date)
+                        dashedDateParse(calendarMatch.end.date) === dashedDateParse(event.end.date)
                     ) ||
                     !isset(()=>event.end.date)
                 )
